@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -62,7 +63,11 @@ fun DashboardScreen(
     if (uiState.historyViewSession != null) {
         SessionHistoryDetailScreen(
             session = uiState.historyViewSession!!,
-            onBack = { viewModel.viewHistorySession(null) }
+            onBack = { viewModel.viewHistorySession(null) },
+            onDelete = {
+                viewModel.deleteSessionHistory(uiState.historyViewSession!!)
+                viewModel.viewHistorySession(null)
+            }
         )
     } else if (!uiState.isActiveSessionRunning || forceShowSetup) {
         var showRestartConfirmation by remember { mutableStateOf(false) }
@@ -876,7 +881,47 @@ fun SessionSetupScreen(
                         }
                     }
                 }
-                item { Spacer(modifier = Modifier.height(32.dp)) }
+                item {
+                    var showClearHistoryConfirmation by remember { mutableStateOf(false) }
+
+                    if (showClearHistoryConfirmation) {
+                        AlertDialog(
+                            onDismissRequest = { showClearHistoryConfirmation = false },
+                            title = { Text("Clear Session History?") },
+                            text = { Text("Are you sure you want to delete ALL session history? This action cannot be undone.") },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        viewModel.clearAllSessionHistory()
+                                        showClearHistoryConfirmation = false
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Text("Clear All")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showClearHistoryConfirmation = false }) {
+                                    Text("Cancel")
+                                }
+                            }
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp, bottom = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        TextButton(
+                            onClick = { showClearHistoryConfirmation = true },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("Clear Session History")
+                        }
+                    }
+                }
             }
         } else {
             Spacer(modifier = Modifier.weight(1f))
@@ -886,9 +931,38 @@ fun SessionSetupScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SessionHistoryDetailScreen(session: SessionHistoryEntity, onBack: () -> Unit) {
+fun SessionHistoryDetailScreen(
+    session: SessionHistoryEntity,
+    onBack: () -> Unit,
+    onDelete: () -> Unit
+) {
     val date = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(session.timestamp))
     val participants = session.participantDataJson.split("\n").filter { it.isNotBlank() }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Delete Session History?") },
+            text = { Text("Are you sure you want to delete this session history? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDelete()
+                        showDeleteConfirmation = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -897,11 +971,17 @@ fun SessionHistoryDetailScreen(session: SessionHistoryEntity, onBack: () -> Unit
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showDeleteConfirmation = true }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete Session")
                     }
                 }
             )

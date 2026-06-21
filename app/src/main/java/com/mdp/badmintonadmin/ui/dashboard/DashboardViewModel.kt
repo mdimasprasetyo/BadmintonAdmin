@@ -128,6 +128,18 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.value = _uiState.value.copy(historyViewSession = session)
     }
 
+    fun deleteSessionHistory(session: SessionHistoryEntity) {
+        viewModelScope.launch {
+            playerDao.deleteSessionHistory(session)
+        }
+    }
+
+    fun clearAllSessionHistory() {
+        viewModelScope.launch {
+            playerDao.clearAllSessionHistory()
+        }
+    }
+
     // NEW: Register a brand new player to the club AND check them in tonight
     fun registerNewPlayerAndCheckIn(name: String, baseTier: String, gender: String) {
         viewModelScope.launch {
@@ -216,7 +228,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         var nextCourtNum = 1
         val finalNewAssignments = newAssignments.map { 
             while (usedCourtNumbers.contains(nextCourtNum)) nextCourtNum++
-            it.copy(courtNumber = nextCourtNum++, stableId = System.nanoTime())
+            it.copy(courtNumber = nextCourtNum++)
         }
 
         val allAssignedCourts = (existingCourts + finalNewAssignments).sortedBy { it.courtNumber }

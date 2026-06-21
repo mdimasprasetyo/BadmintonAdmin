@@ -151,6 +151,6 @@ class Matchmaker(private val priorityEngine: PriorityEngine = PriorityEngine()) 
         val team1 = Pair(sortedByWeight[0], sortedByWeight[3])
         val team2 = Pair(sortedByWeight[1], sortedByWeight[2])
         
-        return CourtAssignment(courtNum, team1, team2, stableId = System.nanoTime())
+        return CourtAssignment(courtNum, team1, team2)
     }
 }

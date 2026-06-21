@@ -14,9 +14,10 @@ data class PlayerMatchmakingProfile(
 data class CourtAssignment(
     val courtNumber: Int,
     val team1: Pair<PlayerMatchmakingProfile, PlayerMatchmakingProfile>,
-    val team2: Pair<PlayerMatchmakingProfile, PlayerMatchmakingProfile>,
-    val stableId: Long = System.currentTimeMillis() + courtNumber // Help Compose track item movement
+    val team2: Pair<PlayerMatchmakingProfile, PlayerMatchmakingProfile>
 ) {
+    val stableId: Long get() = courtNumber.toLong() // Help Compose track item movement by court slot
+
     // Helper to get all 4 player IDs assigned to this court
     fun getAllPlayerIds(): List<Int> = listOf(
         team1.first.playerId, team1.second.playerId,

@@ -42,4 +42,10 @@ interface PlayerDao {
 
     @Query("SELECT * FROM session_history ORDER BY timestamp DESC")
     fun getAllSessionHistory(): Flow<List<SessionHistoryEntity>>
+
+    @Delete
+    suspend fun deleteSessionHistory(history: SessionHistoryEntity)
+
+    @Query("DELETE FROM session_history")
+    suspend fun clearAllSessionHistory()
 }
