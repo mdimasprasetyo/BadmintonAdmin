@@ -18,9 +18,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 data class DashboardUiState(
     val isActiveSessionRunning: Boolean = false,
@@ -320,15 +317,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 playerDao.updateSessionParticipant(updatedPlayer)
                 refreshMatchmakingLineups()
             }
-        }
-    }
-
-    fun updateCourtLineup(courtId: Long, newTeam1: Pair<PlayerMatchmakingProfile, PlayerMatchmakingProfile>, newTeam2: Pair<PlayerMatchmakingProfile, PlayerMatchmakingProfile>) {
-        val currentCourts = _uiState.value.activeCourts.toMutableList()
-        val index = currentCourts.indexOfFirst { it.stableId == courtId }
-        if (index != -1) {
-            currentCourts[index] = currentCourts[index].copy(team1 = newTeam1, team2 = newTeam2)
-            _uiState.value = _uiState.value.copy(activeCourts = currentCourts)
         }
     }
 

@@ -2,7 +2,6 @@ package com.mdp.badmintonadmin.domain.matchmaker
 
 import com.mdp.badmintonadmin.domain.model.CourtAssignment
 import com.mdp.badmintonadmin.domain.model.PlayerMatchmakingProfile
-import kotlin.math.abs
 
 class Matchmaker(private val priorityEngine: PriorityEngine = PriorityEngine()) {
 
