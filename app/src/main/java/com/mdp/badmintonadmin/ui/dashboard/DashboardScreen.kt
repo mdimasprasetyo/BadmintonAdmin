@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mdp.badmintonadmin.ui.theme.GenderFemale
@@ -288,7 +290,7 @@ fun DashboardScreen(
         AlertDialog(
             onDismissRequest = { showSaveConfirmation = false },
             title = { Text("Save & End Session?") },
-            text = { Text("This will save player stats to history and clear the board. Continue?") },
+            text = { Text("This will save player stats to history and clear the board. Matches still on court won't be counted. Continue?") },
             confirmButton = {
                 Button(onClick = {
                     viewModel.saveAndEndSession()
@@ -812,28 +814,42 @@ fun SessionSetupScreen(
             Spacer(modifier = Modifier.height(12.dp))
         }
 
+        val courts = courtsText.toIntOrNull()
+        val duration = durationText.toIntOrNull()
+        val courtsValid = courts != null && courts in SessionLimits.COURTS
+        val durationValid = duration != null && duration in SessionLimits.DURATION_MINUTES
+
         OutlinedTextField(
             value = courtsText,
-            onValueChange = { courtsText = it },
+            onValueChange = { input -> courtsText = input.filter { it.isDigit() }.take(2) },
             label = { Text("Number of Booked Courts") },
+            isError = !courtsValid,
+            supportingText = if (!courtsValid) {
+                { Text("Enter ${SessionLimits.COURTS.first}–${SessionLimits.COURTS.last} courts") }
+            } else null,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
             value = durationText,
-            onValueChange = { durationText = it },
+            onValueChange = { input -> durationText = input.filter { it.isDigit() }.take(3) },
             label = { Text("Session Duration (Minutes)") },
+            isError = !durationValid,
+            supportingText = if (!durationValid) {
+                { Text("Enter ${SessionLimits.DURATION_MINUTES.first}–${SessionLimits.DURATION_MINUTES.last} minutes") }
+            } else null,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = {
-                val courts = courtsText.toIntOrNull() ?: 2
-                val duration = durationText.toIntOrNull() ?: 120
-                onStartClick(courts, duration)
-            },
+            onClick = { onStartClick(courts!!, duration!!) },
+            enabled = courtsValid && durationValid,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(if (uiState.isActiveSessionRunning) "Restart Session" else "Open Admin Dashboard")
