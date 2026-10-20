@@ -7,6 +7,7 @@ import com.mdp.badmintonadmin.data.local.AppDatabase
 import com.mdp.badmintonadmin.data.local.entity.PlayerEntity
 import com.mdp.badmintonadmin.data.local.entity.SessionHistoryEntity
 import com.mdp.badmintonadmin.data.local.entity.SessionParticipantEntity
+import com.mdp.badmintonadmin.data.session.SessionStore
 import com.mdp.badmintonadmin.domain.matchmaker.Matchmaker
 import com.mdp.badmintonadmin.domain.matchmaker.PriorityEngine
 import com.mdp.badmintonadmin.domain.model.CourtAssignment
@@ -29,14 +30,83 @@ data class DashboardUiState(
     val historyViewSession: SessionHistoryEntity? = null
 )
 
+/** Accepted ranges for the session setup form. */
+object SessionLimits {
+    val COURTS = 1..20
+    val DURATION_MINUTES = 20..720
+}
+
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
 
     private val playerDao = AppDatabase.getDatabase(application).playerDao()
     private val matchmaker = Matchmaker()
     private val priorityEngine = PriorityEngine()
+    private val sessionStore = SessionStore(application)
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
+
+    init {
+        // Restore a session that was running when Android killed the app.
+        val saved = sessionStore.load()
+        if (saved != null) {
+            _uiState.value = DashboardUiState(
+                isActiveSessionRunning = true,
+                totalCourtsBooked = saved.courtsBooked,
+                sessionDurationMinutes = saved.durationMinutes
+            )
+        }
+        viewModelScope.launch {
+            if (saved != null) restoreCourts(saved)
+            // From here on, every state change is mirrored to disk.
+            _uiState.collect { persistSession(it) }
+        }
+    }
+
+    private fun persistSession(state: DashboardUiState) {
+        if (!state.isActiveSessionRunning) {
+            sessionStore.clear()
+            return
+        }
+        sessionStore.save(
+            courtsBooked = state.totalCourtsBooked,
+            durationMinutes = state.sessionDurationMinutes,
+            courts = state.activeCourts.map {
+                SessionStore.SavedCourt(
+                    courtNumber = it.courtNumber,
+                    team1 = it.team1.first.playerId to it.team1.second.playerId,
+                    team2 = it.team2.first.playerId to it.team2.second.playerId
+                )
+            }
+        )
+    }
+
+    private suspend fun restoreCourts(saved: SessionStore.SavedSession) {
+        val profiles = playerDao.getActiveSessionParticipants().first()
+            .map { it.toProfile() }
+            .associateBy { it.playerId }
+        val courts = saved.courts.mapNotNull { court ->
+            val a = profiles[court.team1.first]
+            val b = profiles[court.team1.second]
+            val c = profiles[court.team2.first]
+            val d = profiles[court.team2.second]
+            if (a == null || b == null || c == null || d == null) null
+            else CourtAssignment(court.courtNumber, a to b, c to d)
+        }
+        _uiState.value = _uiState.value.copy(activeCourts = courts)
+        refreshMatchmakingLineups()
+    }
+
+    private fun SessionParticipantEntity.toProfile() = PlayerMatchmakingProfile(
+        playerId = playerId,
+        name = name,
+        activeTier = activeTier,
+        gender = gender,
+        arrivalIndex = arrivalIndex,
+        gamesPlayed = gamesPlayed,
+        matchesSatOutConsecutively = matchesSatOutConsecutively,
+        isActivePresent = isActivePresent
+    )
 
     // NEW: Observe the permanent roster from the database
     val permanentRoster: StateFlow<List<PlayerEntity>> = playerDao.getAllPermanentPlayers()
@@ -51,8 +121,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             playerDao.clearCurrentSession()
             _uiState.value = DashboardUiState(
                 isActiveSessionRunning = true,
-                totalCourtsBooked = courts,
-                sessionDurationMinutes = durationMinutes
+                totalCourtsBooked = courts.coerceIn(SessionLimits.COURTS),
+                sessionDurationMinutes = durationMinutes.coerceIn(SessionLimits.DURATION_MINUTES)
             )
             refreshMatchmakingLineups()
         }
@@ -76,21 +146,10 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun saveAndEndSession() {
         viewModelScope.launch {
-            // Auto-finish matches: Increment gamesPlayed for everyone on court
-            val playingIds = _uiState.value.activeCourts.flatMap { it.getAllPlayerIds() }.toSet()
-            val currentParticipants = playerDao.getActiveSessionParticipants().first()
+            // Only matches that were marked finished count. Courts still in play when the
+            // session ends are not credited (they may have only just started).
+            val updatedParticipants = playerDao.getActiveSessionParticipants().first()
             val timestamp = System.currentTimeMillis()
-            
-            val updatedParticipants = currentParticipants.map { participant ->
-                if (participant.playerId in playingIds) {
-                    participant.copy(
-                        gamesPlayed = participant.gamesPlayed + 1,
-                        matchesSatOutConsecutively = 0
-                    )
-                } else {
-                    participant
-                }
-            }
 
             if (updatedParticipants.isNotEmpty()) {
                 val dataString = updatedParticipants.joinToString("\n") { 
@@ -179,18 +238,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         val currentParticipantsEntities = playerDao.getActiveSessionParticipants().first()
         if (currentParticipantsEntities.isEmpty()) return
 
-        val domainProfiles = currentParticipantsEntities.map {
-            PlayerMatchmakingProfile(
-                playerId = it.playerId,
-                name = it.name,
-                activeTier = it.activeTier,
-                gender = it.gender,
-                arrivalIndex = it.arrivalIndex,
-                gamesPlayed = it.gamesPlayed,
-                matchesSatOutConsecutively = it.matchesSatOutConsecutively,
-                isActivePresent = it.isActivePresent
-            )
-        }
+        val domainProfiles = currentParticipantsEntities.map { it.toProfile() }
 
         val globalMin = domainProfiles.filter { it.isActivePresent }.minOfOrNull { it.gamesPlayed } ?: 0
 
