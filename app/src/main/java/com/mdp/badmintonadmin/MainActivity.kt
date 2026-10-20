@@ -13,8 +13,7 @@ import com.mdp.badmintonadmin.ui.dashboard.DashboardViewModel
 import com.mdp.badmintonadmin.ui.player_mgmt.RosterScreen
 import com.mdp.badmintonadmin.ui.player_mgmt.RosterViewModel
 import com.mdp.badmintonadmin.ui.theme.BadmintonAdminTheme
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import com.mdp.badmintonadmin.data.session.SessionStore
 
 enum class Screen {
     Home, Roster, Dashboard
@@ -30,9 +29,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         // Check if a session is already running to determine initial screen
-        val isSessionRunning = runBlocking {
-            dashboardViewModel.uiState.first().isActiveSessionRunning
-        }
+        // Read straight from disk: a session survives the app being killed.
+        val isSessionRunning = SessionStore(this).isRunning()
 
         setContent {
             BadmintonAdminTheme {
