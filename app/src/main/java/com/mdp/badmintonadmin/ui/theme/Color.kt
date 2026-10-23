@@ -2,33 +2,59 @@ package com.mdp.badmintonadmin.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Primary - Deep Purples
-val Purple80 = Color(0xFFD0BCFF)
-val Purple40 = Color(0xFF4A378B) // Darkened for better contrast (~7.2:1 on White)
+// Court palette: deep court green-black surfaces, chalk text, one coral accent.
+// Same design language as Pickles / ScoreCounter (navy + Volt there), recoloured for badminton.
 
-// Secondary - Muted Purples
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val PurpleGrey40 = Color(0xFF625b71)
+// Surfaces, darkest to lightest
+val CourtNight = Color(0xFF0B1A14)         // window / screen background
+val CourtSurface = Color(0xFF12271E)       // cards
+val CourtSurfaceHigh = Color(0xFF183328)   // raised cards, tool buttons, dialogs
+val CourtSurfaceTop = Color(0xFF1F3E31)    // pressed / selected surfaces
+val CourtOutline = Color(0xFF24443A)       // thin card outlines
+val CourtOutlineStrong = Color(0xFF3B6454) // text field borders, dividers that must be seen
 
-// Tertiary - Accessible Greens for "Finish" actions
-// Light Mode: Dark green background with white text (Contrast ~5.6:1)
-val FinishGreenLight = Color(0xFF2E7D32)
-val OnFinishGreenLight = Color.White
+// Court green (resume card, selected states)
+val CourtGreen = Color(0xFF1F5A43)
+val OnCourtGreen = Color(0xFFDDF3E7)
+val CourtLine = Color(0xFF7FC4A3)          // chalk-green line colour for small highlights
 
-// Dark Mode: Lighter green background with dark text (Contrast ~10:1)
-val FinishGreenDark = Color(0xFF81C784)
-val OnFinishGreenDark = Color(0xFF003300)
+// Text
+val Chalk = Color(0xFFEEF5F0)
+val Muted = Color(0xFF9DB8AB)
+val Faint = Color(0xFF6E8C7F)
 
-// Neutral Colors
-val DarkBackground = Color(0xFF1C1B1F)
-val LightBackground = Color(0xFFFFFBFE)
+// Accent: coral, used sparingly for primary actions, pills and highlights
+val Coral = Color(0xFFFF6B5A)
+val OnCoral = Color(0xFF2A0E0A)
+val CoralContainer = Color(0xFF4A2019)
+val OnCoralContainer = Color(0xFFFFDAD3)
 
-// Text variants for accessibility (replacing Color.Gray)
-val LightOnSurfaceVariant = Color(0xFF49454F) // Higher contrast than Gray on White
-val DarkOnSurfaceVariant = Color(0xFFCAC4D0) // Higher contrast than Gray on Black
+// Results and states
+val WinGreen = Color(0xFF6FD69C)
+val OnWinGreen = Color(0xFF062414)
+val Danger = Color(0xFFFF5C7A)             // destructive actions (raspberry, distinct from coral)
+val OnDanger = Color(0xFF3B0614)
+val DangerContainer = Color(0xFF4A1524)
 
-// Gender Colors (Accessible on White)
-val GenderMale = Color(0xFF1976D2)
-val OnGenderMale = Color.White
-val GenderFemale = Color(0xFFD32F2F)
-val OnGenderFemale = Color.White
+// Gender chips: cool teal-blue vs soft rose, tinted containers with light text (AA on both)
+val GenderMale = Color(0xFF133944)
+val OnGenderMale = Color(0xFF8EDCEE)
+val GenderFemale = Color(0xFF46212E)
+val OnGenderFemale = Color(0xFFFFB1C8)
+
+// Skill tiers S > A > X > B > C > D
+val TierS = Color(0xFFFFCF5C)
+val TierA = Color(0xFFFF9F70)
+val TierB = Color(0xFF7FDDA9)
+val TierC = Color(0xFF7CCBE6)
+val TierD = Color(0xFFB9ACEB)
+val TierX = Color(0xFFB7C9C0)
+
+fun tierColor(tier: String): Color = when (tier.uppercase()) {
+    "S" -> TierS
+    "A" -> TierA
+    "B" -> TierB
+    "C" -> TierC
+    "D" -> TierD
+    else -> TierX
+}
