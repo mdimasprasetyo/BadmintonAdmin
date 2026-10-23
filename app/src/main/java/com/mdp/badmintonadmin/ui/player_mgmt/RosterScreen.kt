@@ -133,6 +133,7 @@ fun RosterScreen(viewModel: RosterViewModel, onBack: () -> Unit) {
 
             items(uiState.players, key = { it.id }) { player ->
                 PlayerRosterItem(
+                    modifier = Modifier.animateItem(),
                     player = player,
                     onEdit = { playerToEdit = player },
                     onDelete = { playerToDelete = player }
@@ -186,13 +187,14 @@ fun RosterScreen(viewModel: RosterViewModel, onBack: () -> Unit) {
 fun PlayerRosterItem(
     player: PlayerEntity,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val lastPlayed = player.lastPlayedTimestamp?.let {
         SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(it))
     } ?: "Never"
 
-    AppCard(modifier = Modifier.fillMaxWidth(), onClick = onEdit) {
+    AppCard(modifier = modifier.fillMaxWidth(), onClick = onEdit) {
         Row(
             modifier = Modifier
                 .padding(start = 14.dp, top = 12.dp, bottom = 12.dp, end = 4.dp)
