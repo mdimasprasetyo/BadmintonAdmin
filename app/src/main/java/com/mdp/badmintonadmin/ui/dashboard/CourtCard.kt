@@ -1,5 +1,12 @@
 package com.mdp.badmintonadmin.ui.dashboard
 
+import com.mdp.badmintonadmin.ui.components.Motion
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -60,6 +67,7 @@ import com.mdp.badmintonadmin.ui.theme.CourtGreen
 @Composable
 fun CourtCard(
     court: CourtAssignment,
+    modifier: Modifier = Modifier,
     availableSubstitutes: List<PlayerMatchmakingProfile>,
     onFinish: (MatchWinner) -> Unit,
     onSubstitute: (Int, PlayerMatchmakingProfile) -> Unit,
@@ -68,7 +76,7 @@ fun CourtCard(
     var showFinishDialog by remember { mutableStateOf(false) }
     var showEditPlayersDialog by remember { mutableStateOf(false) }
 
-    AppCard(modifier = Modifier.fillMaxWidth()) {
+    AppCard(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(Dimens.CardPadding)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -145,10 +153,26 @@ private fun TeamBlock(label: String, team: Pair<PlayerMatchmakingProfile, Player
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             Text(label.uppercase(), style = AppText.CondensedLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
-            PlayerLine(team.first.name, team.first.activeTier, team.first.gender, modifier = Modifier.fillMaxWidth())
+            CourtPlayer(team.first)
             Spacer(Modifier.height(8.dp))
-            PlayerLine(team.second.name, team.second.activeTier, team.second.gender, modifier = Modifier.fillMaxWidth())
+            CourtPlayer(team.second)
         }
+    }
+}
+
+/** A player slot that crossfades when someone is substituted or swapped in. */
+@Composable
+private fun CourtPlayer(player: PlayerMatchmakingProfile) {
+    AnimatedContent(
+        targetState = player,
+        contentKey = { it.playerId },
+        transitionSpec = {
+            (fadeIn(tween(Motion.MEDIUM)) + slideInHorizontally(tween(Motion.MEDIUM, easing = Motion.emphasized)) { it / 12 }) togetherWith
+                fadeOut(tween(Motion.SHORT))
+        },
+        label = "courtPlayer"
+    ) { p ->
+        PlayerLine(p.name, p.activeTier, p.gender, modifier = Modifier.fillMaxWidth())
     }
 }
 
