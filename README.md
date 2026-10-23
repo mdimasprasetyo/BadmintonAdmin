@@ -10,7 +10,10 @@ teams.
 - Room database on the device; no network permission, no login, no ads, no analytics
 - Permanent club roster with skill tier (S, A, B, C, D, X) and gender per player
 - Live court board, waiting lounge sorted by priority, substitutions and swaps mid-match
-- Session history with each player's final games played and tier
+- Winner recording: finishing a match asks which pair won; wins and losses build each player's W–L record
+- Undo for the last finished matches, substitutions and swaps (button and snackbar)
+- Session history with each player's final games played, tier and record
+- Dark court theme (deep court green + coral, Plus Jakarta Sans and Barlow Condensed), adaptive launcher icon
 
 ## Project layout
 
@@ -20,6 +23,7 @@ BadmintonAdmin/
     └── src/main/java/com/mdp/badmintonadmin/
         ├── MainActivity.kt         Entry point, screen routing (Home, Dashboard, Roster), back handling
         ├── domain/
+        │   ├── session/            SessionRules (match credit, undo restore, history lines), UndoStack
         │   ├── model/Models.kt     PlayerMatchmakingProfile, CourtAssignment
         │   └── matchmaker/
         │       ├── PriorityEngine.kt   Priority score (arrival, bench time, game variance)
@@ -29,7 +33,8 @@ BadmintonAdmin/
         │   ├── dao/PlayerDao.kt    Roster, active-session and history queries
         │   └── entity/             PlayerEntity, SessionParticipantEntity, SessionHistoryEntity
         └── ui/
-            ├── dashboard/          DashboardScreen + DashboardViewModel (setup, courts, lounge, history)
+            ├── dashboard/          DashboardScreen (routing) + DashboardViewModel; SessionSetupScreen,
+            │                       SessionBoard, CourtCard, WaitingLounge, SessionHistoryScreen, DashboardDialogs
             ├── player_mgmt/        RosterScreen + RosterViewModel (add, edit, search, delete)
             ├── components/         Shared composables
             └── theme/              Colours, typography, Material 3 theme
@@ -57,7 +62,9 @@ never picks players itself.
 | A balanced all-men or all-women court wins over a balanced mixed one | `autoGenerateLineups` |
 | If no four players pass the skill check, the top four by priority play anyway | `autoGenerateLineups` |
 | Teams: 1st + 4th strongest vs 2nd + 3rd strongest | `createBalancedCourtAssignment` |
-| Finishing a match: its four players get +1 game and a bench count of 0; everyone else present gets +1 bench count | `DashboardViewModel.completeMatch` |
+| Finishing a match: its four players get +1 game and a bench count of 0; everyone else present gets +1 bench count; the winning pair gets +1 win and the other pair +1 loss (or nothing on "No result") | `SessionRules.creditFinishedMatch` |
+| Wins, losses and games reach the permanent roster on Save & End | `DashboardViewModel.saveAndEndSession` |
+| Undo restores the courts and the affected players' stats from a snapshot (last 10 actions, in memory) | `DashboardViewModel.undoLastAction` |
 | Substituting a player credits them with the game and marks them absent | `DashboardViewModel.substitutePlayer` |
 | Absent players are skipped until marked present again | `togglePlayerPresence` |
 
