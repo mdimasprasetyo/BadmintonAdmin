@@ -10,6 +10,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import com.mdp.badmintonadmin.ui.dashboard.DashboardScreen
 import com.mdp.badmintonadmin.ui.dashboard.DashboardViewModel
 import com.mdp.badmintonadmin.ui.player_mgmt.RosterScreen
@@ -17,8 +25,8 @@ import com.mdp.badmintonadmin.ui.player_mgmt.RosterViewModel
 import com.mdp.badmintonadmin.ui.theme.BadmintonAdminTheme
 import com.mdp.badmintonadmin.data.session.SessionStore
 
-enum class Screen {
-    Home, Roster, Dashboard
+enum class Screen(val depth: Int) {
+    Home(0), Roster(1), Dashboard(1)
 }
 
 class MainActivity : ComponentActivity() {
@@ -51,7 +59,17 @@ class MainActivity : ComponentActivity() {
                         currentScreen = Screen.Home
                     }
 
-                    when (currentScreen) {
+                    AnimatedContent(
+                        targetState = currentScreen,
+                        transitionSpec = {
+                            // Deeper screens slide in from the right; going back slides the other way (as in Pickles).
+                            val dir = if (targetState.depth >= initialState.depth) 1 else -1
+                            (fadeIn(tween(260, delayMillis = 40)) + slideInHorizontally(tween(300, easing = FastOutSlowInEasing)) { dir * it / 10 }) togetherWith
+                                (fadeOut(tween(160)) + slideOutHorizontally(tween(300, easing = FastOutSlowInEasing)) { -dir * it / 14 })
+                        },
+                        label = "screen"
+                    ) { screen ->
+                    when (screen) {
                         Screen.Home -> {
                             DashboardScreen(
                                 viewModel = dashboardViewModel,
@@ -75,6 +93,7 @@ class MainActivity : ComponentActivity() {
                                 onBack = { currentScreen = Screen.Home }
                             )
                         }
+                    }
                     }
                 }
             }
