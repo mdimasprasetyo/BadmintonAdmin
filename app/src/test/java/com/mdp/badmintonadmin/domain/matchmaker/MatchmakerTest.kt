@@ -93,6 +93,66 @@ class MatchmakerTest {
         assertTrue("Skill gap too large in court 1: $weights1", !weights1.contains("D"))
     }
 
+    @Test
+    fun `two men and two women are split into mixed pairs`() {
+        val players = listOf(
+            createPlayer(1, "M1", "B", "M", 1),
+            createPlayer(2, "M2", "B", "M", 2),
+            createPlayer(3, "W1", "B", "W", 3),
+            createPlayer(4, "W2", "B", "W", 4)
+        )
+
+        val court = matchmaker.autoGenerateLineups(players, 1, 0).single()
+
+        assertTrue("Team 1 should be MW", court.team1.first.gender != court.team1.second.gender)
+        assertTrue("Team 2 should be MW", court.team2.first.gender != court.team2.second.gender)
+    }
+
+    @Test
+    fun `team split keeps combined tiers as even as possible`() {
+        val players = listOf(
+            createPlayer(1, "S", "S", "M", 1),
+            createPlayer(2, "A", "A", "M", 2),
+            createPlayer(3, "B", "B", "M", 3),
+            createPlayer(4, "C", "C", "M", 4)
+        )
+
+        val court = matchmaker.createBalancedCourtAssignment(1, players)
+        val team1 = setOf(court.team1.first.name, court.team1.second.name)
+
+        // S+C (7) vs A+B (7) is the only perfectly even split
+        assertTrue("Expected S+C vs A+B but got $team1", team1 == setOf("S", "C") || team1 == setOf("A", "B"))
+    }
+
+    @Test
+    fun `fallback picks the least lopsided court instead of the next four in line`() {
+        // Nobody can be balanced with the S player within the 2.0 gap, but D players are
+        // first in the queue after him. The fallback should take the C players instead.
+        val players = listOf(
+            createPlayer(1, "S", "S", "M", 1),
+            createPlayer(2, "D1", "D", "M", 2),
+            createPlayer(3, "D2", "D", "M", 3),
+            createPlayer(4, "D3", "D", "M", 4),
+            createPlayer(5, "C1", "C", "M", 5),
+            createPlayer(6, "C2", "C", "M", 6),
+            createPlayer(7, "C3", "C", "M", 7)
+        )
+
+        val court = matchmaker.autoGenerateLineups(players, 1, 0).single()
+        val tiers = court.getAllPlayerIds().map { id -> players.first { it.playerId == id }.activeTier }
+
+        assertTrue("Expected S with three C players but got $tiers", tiers.count { it == "C" } == 3)
+    }
+
+    @Test
+    fun `highest priority player always gets a court`() {
+        val players = (1..8).map { createPlayer(it, "P$it", "B", if (it % 2 == 0) "W" else "M", it) }
+
+        val assignments = matchmaker.autoGenerateLineups(players, 1, 0)
+
+        assertTrue(assignments.single().getAllPlayerIds().contains(1))
+    }
+
     private fun createPlayer(id: Int, name: String, tier: String, gender: String, arrival: Int) = PlayerMatchmakingProfile(
         playerId = id,
         name = name,

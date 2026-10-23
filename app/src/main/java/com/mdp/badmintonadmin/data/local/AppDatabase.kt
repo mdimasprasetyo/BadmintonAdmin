@@ -11,8 +11,8 @@ import com.mdp.badmintonadmin.data.local.entity.SessionParticipantEntity
 
 @Database(
     entities = [PlayerEntity::class, SessionParticipantEntity::class, SessionHistoryEntity::class],
-    version = 4,
-    exportSchema = false
+    version = 5,
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
 
@@ -29,7 +29,10 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "badminton_admin_db"
                 )
-                    .fallbackToDestructiveMigration() // Graceful fallback if database structures change
+                    // No destructive fallback on upgrade: a schema change must ship a Migration,
+                    // otherwise the whole club roster would be wiped. Schemas are exported to app/schemas.
+                    .addMigrations(*Migrations.ALL)
+                    .fallbackToDestructiveMigrationOnDowngrade()
                     .build()
                 INSTANCE = instance
                 instance

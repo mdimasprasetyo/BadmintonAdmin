@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.BadmintonAdmin" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+        Dark only, like Pickles and ScoreCounter. The window background is the court night colour so
+        there is no white flash before Compose draws; system bars match it (edge-to-edge is enabled
+        in MainActivity, which makes them transparent over the same colour).
+    -->
+    <style name="Theme.BadmintonAdmin" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorBackground">@color/court_night</item>
+        <item name="android:windowBackground">@color/court_night</item>
+        <item name="android:colorPrimary">@color/court_green</item>
+        <item name="android:colorPrimaryDark">@color/court_night</item>
+        <item name="android:colorAccent">@color/coral</item>
+        <item name="android:textColorPrimary">@color/chalk</item>
+        <item name="android:textColorSecondary">@color/muted</item>
+        <item name="android:statusBarColor">@color/court_night</item>
+        <item name="android:navigationBarColor">@color/court_night</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
 </resources>

@@ -15,15 +15,18 @@ android {
         applicationId = "com.mdp.badmintonadmin"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 4
+        versionName = "1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         getByName("debug") {
-            // Tempat kustomisasi konfigurasi debug jika diperlukan nanti
+            // Debug/test builds install next to the real app instead of replacing it,
+            // so trying a test APK never forces an uninstall that wipes the club roster.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
         }
         release {
             isMinifyEnabled = false

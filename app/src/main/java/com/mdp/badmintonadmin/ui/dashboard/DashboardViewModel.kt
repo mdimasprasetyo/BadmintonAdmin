@@ -7,10 +7,14 @@ import com.mdp.badmintonadmin.data.local.AppDatabase
 import com.mdp.badmintonadmin.data.local.entity.PlayerEntity
 import com.mdp.badmintonadmin.data.local.entity.SessionHistoryEntity
 import com.mdp.badmintonadmin.data.local.entity.SessionParticipantEntity
+import com.mdp.badmintonadmin.data.session.SessionStore
 import com.mdp.badmintonadmin.domain.matchmaker.Matchmaker
 import com.mdp.badmintonadmin.domain.matchmaker.PriorityEngine
 import com.mdp.badmintonadmin.domain.model.CourtAssignment
 import com.mdp.badmintonadmin.domain.model.PlayerMatchmakingProfile
+import com.mdp.badmintonadmin.domain.session.MatchWinner
+import com.mdp.badmintonadmin.domain.session.SessionRules
+import com.mdp.badmintonadmin.domain.session.UndoStack
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +22,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class DashboardUiState(
     val isActiveSessionRunning: Boolean = false,
@@ -26,17 +32,104 @@ data class DashboardUiState(
     val activeCourts: List<CourtAssignment> = emptyList(),
     val waitingLounge: List<PlayerMatchmakingProfile> = emptyList(),
     val displayWarnings: List<String> = emptyList(),
-    val historyViewSession: SessionHistoryEntity? = null
+    val historyViewSession: SessionHistoryEntity? = null,
+    /** Label of the action Undo would reverse ("Court 2 finished"), or null when there is nothing to undo. */
+    val undoLabel: String? = null
 )
+
+/** Everything needed to put the board back the way it was before a finish, substitution or swap. */
+internal data class UndoEntry(
+    val label: String,
+    val courts: List<CourtAssignment>,
+    val participants: List<SessionParticipantEntity>
+)
+
+/** Accepted ranges for the session setup form. */
+object SessionLimits {
+    val COURTS = 1..20
+    val DURATION_MINUTES = 20..720
+}
 
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
 
     private val playerDao = AppDatabase.getDatabase(application).playerDao()
     private val matchmaker = Matchmaker()
     private val priorityEngine = PriorityEngine()
+    private val sessionStore = SessionStore(application)
 
     private val _uiState = MutableStateFlow(DashboardUiState())
+
+    // Undo history for court actions. Kept in memory only: it is cleared when a session starts or ends.
+    private val undoStack = UndoStack<UndoEntry>()
+
+    // Court actions read the participants, change them and write them back; serialise them so two
+    // quick taps (or an undo racing a finish) cannot interleave.
+    private val courtActionLock = Mutex()
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
+
+    init {
+        // Restore a session that was running when Android killed the app.
+        val saved = sessionStore.load()
+        if (saved != null) {
+            _uiState.value = DashboardUiState(
+                isActiveSessionRunning = true,
+                totalCourtsBooked = saved.courtsBooked,
+                sessionDurationMinutes = saved.durationMinutes
+            )
+        }
+        viewModelScope.launch {
+            if (saved != null) restoreCourts(saved)
+            // From here on, every state change is mirrored to disk.
+            _uiState.collect { persistSession(it) }
+        }
+    }
+
+    private fun persistSession(state: DashboardUiState) {
+        if (!state.isActiveSessionRunning) {
+            sessionStore.clear()
+            return
+        }
+        sessionStore.save(
+            courtsBooked = state.totalCourtsBooked,
+            durationMinutes = state.sessionDurationMinutes,
+            courts = state.activeCourts.map {
+                SessionStore.SavedCourt(
+                    courtNumber = it.courtNumber,
+                    team1 = it.team1.first.playerId to it.team1.second.playerId,
+                    team2 = it.team2.first.playerId to it.team2.second.playerId
+                )
+            }
+        )
+    }
+
+    private suspend fun restoreCourts(saved: SessionStore.SavedSession) {
+        val profiles = playerDao.getActiveSessionParticipants().first()
+            .map { it.toProfile() }
+            .associateBy { it.playerId }
+        val courts = saved.courts.mapNotNull { court ->
+            val a = profiles[court.team1.first]
+            val b = profiles[court.team1.second]
+            val c = profiles[court.team2.first]
+            val d = profiles[court.team2.second]
+            if (a == null || b == null || c == null || d == null) null
+            else CourtAssignment(court.courtNumber, a to b, c to d)
+        }
+        _uiState.value = _uiState.value.copy(activeCourts = courts)
+        refreshMatchmakingLineups()
+    }
+
+    private fun SessionParticipantEntity.toProfile() = PlayerMatchmakingProfile(
+        playerId = playerId,
+        name = name,
+        activeTier = activeTier,
+        gender = gender,
+        arrivalIndex = arrivalIndex,
+        gamesPlayed = gamesPlayed,
+        matchesSatOutConsecutively = matchesSatOutConsecutively,
+        isActivePresent = isActivePresent,
+        sessionWins = wins,
+        sessionLosses = losses
+    )
 
     // NEW: Observe the permanent roster from the database
     val permanentRoster: StateFlow<List<PlayerEntity>> = playerDao.getAllPermanentPlayers()
@@ -49,10 +142,11 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     fun startSession(courts: Int, durationMinutes: Int) {
         viewModelScope.launch {
             playerDao.clearCurrentSession()
+            undoStack.clear()
             _uiState.value = DashboardUiState(
                 isActiveSessionRunning = true,
-                totalCourtsBooked = courts,
-                sessionDurationMinutes = durationMinutes
+                totalCourtsBooked = courts.coerceIn(SessionLimits.COURTS),
+                sessionDurationMinutes = durationMinutes.coerceIn(SessionLimits.DURATION_MINUTES)
             )
             refreshMatchmakingLineups()
         }
@@ -66,35 +160,26 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     private suspend fun performReset() {
         playerDao.clearCurrentSession()
+        undoStack.clear()
         _uiState.value = _uiState.value.copy(
             isActiveSessionRunning = false,
             activeCourts = emptyList(),
             waitingLounge = emptyList(),
-            displayWarnings = emptyList()
+            displayWarnings = emptyList(),
+            undoLabel = null
         )
     }
 
     fun saveAndEndSession() {
         viewModelScope.launch {
-            // Auto-finish matches: Increment gamesPlayed for everyone on court
-            val playingIds = _uiState.value.activeCourts.flatMap { it.getAllPlayerIds() }.toSet()
-            val currentParticipants = playerDao.getActiveSessionParticipants().first()
+            // Only matches that were marked finished count. Courts still in play when the
+            // session ends are not credited (they may have only just started).
+            val updatedParticipants = playerDao.getActiveSessionParticipants().first()
             val timestamp = System.currentTimeMillis()
-            
-            val updatedParticipants = currentParticipants.map { participant ->
-                if (participant.playerId in playingIds) {
-                    participant.copy(
-                        gamesPlayed = participant.gamesPlayed + 1,
-                        matchesSatOutConsecutively = 0
-                    )
-                } else {
-                    participant
-                }
-            }
 
             if (updatedParticipants.isNotEmpty()) {
-                val dataString = updatedParticipants.joinToString("\n") { 
-                    "${it.name}|${it.gamesPlayed}|${it.activeTier}" 
+                val dataString = updatedParticipants.joinToString("\n") {
+                    SessionRules.encodeHistoryLine(it)
                 }
                 
                 val history = SessionHistoryEntity(
@@ -111,6 +196,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                         val updatedPlayer = player.copy(
                             totalMatchesPlayed = player.totalMatchesPlayed + participant.gamesPlayed,
                             totalSessionsParticipated = player.totalSessionsParticipated + 1,
+                            totalWins = player.totalWins + participant.wins,
+                            totalLosses = player.totalLosses + participant.losses,
                             lastPlayedTimestamp = timestamp
                         )
                         playerDao.updatePlayer(updatedPlayer)
@@ -179,18 +266,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         val currentParticipantsEntities = playerDao.getActiveSessionParticipants().first()
         if (currentParticipantsEntities.isEmpty()) return
 
-        val domainProfiles = currentParticipantsEntities.map {
-            PlayerMatchmakingProfile(
-                playerId = it.playerId,
-                name = it.name,
-                activeTier = it.activeTier,
-                gender = it.gender,
-                arrivalIndex = it.arrivalIndex,
-                gamesPlayed = it.gamesPlayed,
-                matchesSatOutConsecutively = it.matchesSatOutConsecutively,
-                isActivePresent = it.isActivePresent
-            )
-        }
+        val domainProfiles = currentParticipantsEntities.map { it.toProfile() }
 
         val globalMin = domainProfiles.filter { it.isActivePresent }.minOfOrNull { it.gamesPlayed } ?: 0
 
@@ -240,38 +316,56 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         )
     }
 
-    fun completeMatch(courtAssignment: CourtAssignment) {
+    /**
+     * Finishes the match on [courtAssignment]. [winner] credits a win to one pair and a loss to the
+     * other for tonight; the totals reach the permanent roster on Save & End, like games played.
+     */
+    fun completeMatch(courtAssignment: CourtAssignment, winner: MatchWinner = MatchWinner.NONE) {
         viewModelScope.launch {
-            // Get current participants again to catch any mid-game substitutions
-            val currentEntities = playerDao.getActiveSessionParticipants().first()
-            
-            // We use the player IDs currently on the court assignment
-            val playingIds = courtAssignment.getAllPlayerIds().toSet()
+            courtActionLock.withLock {
+                // Get current participants again to catch any mid-game substitutions
+                val currentEntities = playerDao.getActiveSessionParticipants().first()
+                val court = _uiState.value.activeCourts.find { it.stableId == courtAssignment.stableId }
+                    ?: return@withLock
+                pushUndo("Court ${court.courtNumber} finished", currentEntities)
 
-            val updatedEntities = currentEntities.map { participant ->
-                // Check if player was part of the FINISHING match
-                if (participant.playerId in playingIds) {
-                    participant.copy(
-                        gamesPlayed = participant.gamesPlayed + 1,
-                        matchesSatOutConsecutively = 0
-                    )
-                } else if (participant.isActivePresent) {
-                    participant.copy(
-                        matchesSatOutConsecutively = participant.matchesSatOutConsecutively + 1
-                    )
-                } else {
-                    participant
-                }
+                // Credit the players currently on the court (not a stale copy from the UI)
+                val updatedEntities = SessionRules.creditFinishedMatch(currentEntities, court, winner)
+                playerDao.insertSessionParticipants(updatedEntities)
+
+                // Remove finished court from activeCourts before refreshing
+                val updatedCourts = _uiState.value.activeCourts.filter { it.stableId != court.stableId }
+                _uiState.value = _uiState.value.copy(activeCourts = updatedCourts)
+
+                refreshMatchmakingLineups()
             }
-
-            playerDao.insertSessionParticipants(updatedEntities)
-            
-            // FIX: Remove finished court from activeCourts before refreshing
-            val updatedCourts = _uiState.value.activeCourts.filter { it.stableId != courtAssignment.stableId }
-            _uiState.value = _uiState.value.copy(activeCourts = updatedCourts)
-
-            refreshMatchmakingLineups()
         }
+    }
+
+    /** Reverses the most recent finish, substitution or swap. */
+    fun undoLastAction() {
+        viewModelScope.launch {
+            courtActionLock.withLock {
+                val entry = undoStack.pop() ?: return@withLock
+                if (!_uiState.value.isActiveSessionRunning) return@withLock
+
+                val currentEntities = playerDao.getActiveSessionParticipants().first()
+                playerDao.insertSessionParticipants(SessionRules.restoreStats(currentEntities, entry.participants))
+
+                // Courts go back exactly as they were; refreshing re-syncs names/tiers from the
+                // database and fills any court that is free.
+                _uiState.value = _uiState.value.copy(
+                    activeCourts = entry.courts,
+                    undoLabel = undoStack.peek()?.label
+                )
+                refreshMatchmakingLineups()
+            }
+        }
+    }
+
+    private fun pushUndo(label: String, participants: List<SessionParticipantEntity>) {
+        undoStack.push(UndoEntry(label, _uiState.value.activeCourts, participants))
+        _uiState.value = _uiState.value.copy(undoLabel = label)
     }
 
     fun modifyTierMidGame(playerId: Int, temporaryNewTier: String) {
@@ -342,35 +436,49 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 val newTeam1 = replace(court.team1.first) to replace(court.team1.second)
                 val newTeam2 = replace(court.team2.first) to replace(court.team2.second)
                 
-                currentCourts[index] = court.copy(team1 = newTeam1, team2 = newTeam2)
-                _uiState.value = _uiState.value.copy(activeCourts = currentCourts)
+                viewModelScope.launch {
+                    courtActionLock.withLock {
+                        pushUndo("Players swapped on Court ${court.courtNumber}", playerDao.getActiveSessionParticipants().first())
+                        val latest = _uiState.value.activeCourts.toMutableList()
+                        val latestIndex = latest.indexOfFirst { it.stableId == courtId }
+                        if (latestIndex != -1) {
+                            latest[latestIndex] = court.copy(team1 = newTeam1, team2 = newTeam2)
+                            _uiState.value = _uiState.value.copy(activeCourts = latest)
+                        }
+                    }
+                }
             }
         }
     }
 
     fun substitutePlayer(court: CourtAssignment, oldPlayerId: Int, newPlayerProfile: PlayerMatchmakingProfile) {
         viewModelScope.launch {
-            // 1. Credit the injured/replaced player IMMEDIATELY for the game they started
-            val currentEntities = playerDao.getActiveSessionParticipants().first()
-            val updatedEntities = currentEntities.map { participant ->
-                if (participant.playerId == oldPlayerId) {
-                    participant.copy(
-                        gamesPlayed = participant.gamesPlayed + 1,
-                        matchesSatOutConsecutively = 0,
-                        isActivePresent = false // Mark as absent (injured/home) by default on substitution
-                    )
-                } else {
-                    participant
-                }
-            }
-            playerDao.insertSessionParticipants(updatedEntities)
+            courtActionLock.withLock {
+                val currentCourts = _uiState.value.activeCourts.toMutableList()
+                val index = currentCourts.indexOfFirst { it.stableId == court.stableId }
+                if (index == -1) return@withLock
 
-            // 2. Update the UI state for the court assignment
-            val currentCourts = _uiState.value.activeCourts.toMutableList()
-            val index = currentCourts.indexOfFirst { it.stableId == court.stableId }
-            if (index != -1) {
+                // 1. Credit the injured/replaced player IMMEDIATELY for the game they started
+                val currentEntities = playerDao.getActiveSessionParticipants().first()
+                val outgoingName = currentEntities.find { it.playerId == oldPlayerId }?.name ?: "Player"
+                pushUndo("$outgoingName substituted on Court ${court.courtNumber}", currentEntities)
+
+                val updatedEntities = currentEntities.map { participant ->
+                    if (participant.playerId == oldPlayerId) {
+                        participant.copy(
+                            gamesPlayed = participant.gamesPlayed + 1,
+                            matchesSatOutConsecutively = 0,
+                            isActivePresent = false // Mark as absent (injured/home) by default on substitution
+                        )
+                    } else {
+                        participant
+                    }
+                }
+                playerDao.insertSessionParticipants(updatedEntities)
+
+                // 2. Update the UI state for the court assignment
                 val oldCourt = currentCourts[index]
-                
+
                 fun replaceInTeam(team: Pair<PlayerMatchmakingProfile, PlayerMatchmakingProfile>): Pair<PlayerMatchmakingProfile, PlayerMatchmakingProfile> {
                     return when {
                         team.first.playerId == oldPlayerId -> team.copy(first = newPlayerProfile)
@@ -383,7 +491,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                     team1 = replaceInTeam(oldCourt.team1),
                     team2 = replaceInTeam(oldCourt.team2)
                 )
-                
+
                 _uiState.value = _uiState.value.copy(activeCourts = currentCourts)
                 refreshMatchmakingLineups()
             }

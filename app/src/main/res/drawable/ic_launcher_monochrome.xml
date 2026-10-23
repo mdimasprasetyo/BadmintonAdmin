@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher monochrome layer (themed icons): shuttlecock silhouette. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:rotation="-35" android:scaleX="0.96" android:scaleY="0.96" android:pivotX="54" android:pivotY="54">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M47,66 L36.5,35.5 Q39.5,31.5 42.5,34.2 Q45.5,30.8 48.3,33.6 Q51.2,30.2 54,33.4 Q56.8,30.2 59.7,33.6 Q62.5,30.8 65.5,34.2 Q68.5,31.5 71.5,35.5 L61,66 Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M46,63.5h16v4h-16z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M46,67.5h16v1.5a8,8 0 0 1 -16,0z" />
+    </group>
+</vector>

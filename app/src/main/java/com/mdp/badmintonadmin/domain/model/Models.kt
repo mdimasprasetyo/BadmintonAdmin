@@ -8,7 +8,9 @@ data class PlayerMatchmakingProfile(
     val arrivalIndex: Int,
     val gamesPlayed: Int,
     val matchesSatOutConsecutively: Int,
-    val isActivePresent: Boolean = true
+    val isActivePresent: Boolean = true,
+    val sessionWins: Int = 0,
+    val sessionLosses: Int = 0
 )
 
 data class CourtAssignment(

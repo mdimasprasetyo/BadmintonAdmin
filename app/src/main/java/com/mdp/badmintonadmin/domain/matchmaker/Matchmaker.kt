@@ -83,73 +83,99 @@ class Matchmaker(private val priorityEngine: PriorityEngine = PriorityEngine()) 
         for (courtNum in 1..maxAvailableCourts) {
             if (sortedWaitingList.size < 4) break
 
-            var bestCombination: List<PlayerMatchmakingProfile>? = null
-            var bestIsSameGender = false
+            // Every candidate court includes the highest-priority player (index 0), who must play next.
+            // Pick, in order of preference:
+            //   1. a skill-balanced same-gender court (closest to the front of the queue),
+            //   2. a skill-balanced mixed court, preferring 2M+2W so teams can be MW vs MW,
+            //      then queue order,
+            //   3. if nothing passes the balance rule, the court with the smallest skill gap
+            //      (instead of blindly taking the next four in the queue).
+            val anchor = sortedWaitingList[0]
+            var bestSameGender: Candidate? = null
+            var bestMixed: Candidate? = null
+            var bestAny: Candidate? = null
 
-            // Core Matchmaking Search: Evaluate high-priority candidates down the line
-            // We search for the best combination containing the highest priority player (index 0)
-            val i = 0
-            for (j in i + 1 until sortedWaitingList.size - 2) {
+            for (j in 1 until sortedWaitingList.size - 2) {
                 for (k in j + 1 until sortedWaitingList.size - 1) {
                     for (l in k + 1 until sortedWaitingList.size) {
+                        val players = listOf(anchor, sortedWaitingList[j], sortedWaitingList[k], sortedWaitingList[l])
+                        val gap = skillGap(players)
+                        val queueCost = j + k + l // lower = closer to the front of the queue
+                        val womenCount = players.count { it.gender == "W" }
 
-                        val p1 = sortedWaitingList[i]
-                        val p2 = sortedWaitingList[j]
-                        val p3 = sortedWaitingList[k]
-                        val p4 = sortedWaitingList[l]
+                        val candidate = Candidate(players, gap, queueCost)
+                        if (bestAny == null || candidate.smallerGapThan(bestAny)) bestAny = candidate
 
-                        if (isCourtSkillBalanced(p1, p2, p3, p4)) {
-                            val players = listOf(p1, p2, p3, p4)
-                            val isSameGender = players.all { it.gender == "M" } || players.all { it.gender == "W" }
-                            
-                            if (isSameGender) {
-                                // Found a perfect skill-balanced same-gender match with top priority player
-                                bestCombination = players
-                                bestIsSameGender = true
-                                break
-                            } else if (bestCombination == null) {
-                                // Keep the first balanced mixed match as fallback
-                                bestCombination = players
-                            }
+                        if (!isCourtSkillBalanced(players[0], players[1], players[2], players[3])) continue
+
+                        if (womenCount == 0 || womenCount == 4) {
+                            if (bestSameGender == null || candidate.earlierInQueueThan(bestSameGender)) bestSameGender = candidate
+                        } else {
+                            // Uneven gender split (3+1) cannot form MW vs MW, so rank it below 2+2.
+                            val mixedCandidate = candidate.copy(unevenGender = womenCount != 2)
+                            if (bestMixed == null || mixedCandidate.earlierInQueueThan(bestMixed)) bestMixed = mixedCandidate
                         }
                     }
-                    if (bestIsSameGender) break
                 }
-                if (bestIsSameGender) break
             }
 
-            if (bestCombination != null) {
-                val assignedMatch = createBalancedCourtAssignment(courtNum, bestCombination)
-                assignments.add(assignedMatch)
-                bestCombination.forEach { sortedWaitingList.remove(it) }
-            } else if (sortedWaitingList.size >= 4) {
-                // Fallback: If no valid match passes the balance matrix due to extreme tier differences,
-                // or if we couldn't even find a mixed match with the top player,
-                // grab the top 4 remaining high-priority players and balance THEM manually.
-                val fallbackPlayers = listOf(
-                    sortedWaitingList.removeAt(0),
-                    sortedWaitingList.removeAt(0),
-                    sortedWaitingList.removeAt(0),
-                    sortedWaitingList.removeAt(0)
-                )
-                val assignedMatch = createBalancedCourtAssignment(courtNum, fallbackPlayers)
-                assignments.add(assignedMatch)
-            }
+            val chosen = (bestSameGender ?: bestMixed ?: bestAny)?.players ?: break
+            assignments.add(createBalancedCourtAssignment(courtNum, chosen))
+            chosen.forEach { sortedWaitingList.remove(it) }
         }
 
         return assignments
     }
 
+    private data class Candidate(
+        val players: List<PlayerMatchmakingProfile>,
+        val gap: Double,
+        val queueCost: Int,
+        val unevenGender: Boolean = false
+    ) {
+        /** Fairness first: who has waited longest plays next; skill gap breaks ties. */
+        fun earlierInQueueThan(other: Candidate): Boolean = when {
+            unevenGender != other.unevenGender -> !unevenGender
+            queueCost != other.queueCost -> queueCost < other.queueCost
+            else -> gap < other.gap
+        }
+
+        /** Fallback when no court passes the balance rule: least lopsided court wins. */
+        fun smallerGapThan(other: Candidate): Boolean =
+            gap < other.gap || (gap == other.gap && queueCost < other.queueCost)
+    }
+
+    private fun skillGap(players: List<PlayerMatchmakingProfile>): Double {
+        val weights = players.map { getTierWeight(it.activeTier) }
+        return weights.max() - weights.min()
+    }
+
     /**
-     * Helper to group 4 players into two teams using the (1st+4th) vs (2nd+3rd) weight balancing pattern.
+     * Splits 4 players into two teams. Of the three possible pairings it picks the one with the
+     * smallest difference in combined tier weight; when the court is 2 men + 2 women, pairings that
+     * give each team one man and one woman (MW vs MW) always win over MM vs WW.
      */
-    private fun createBalancedCourtAssignment(courtNum: Int, players: List<PlayerMatchmakingProfile>): CourtAssignment {
-        val sortedByWeight = players.sortedByDescending { getTierWeight(it.activeTier) }
-        
-        // Best competitive balance pattern: (1st + 4th heaviest) vs (2nd + 3rd heaviest)
-        val team1 = Pair(sortedByWeight[0], sortedByWeight[3])
-        val team2 = Pair(sortedByWeight[1], sortedByWeight[2])
-        
-        return CourtAssignment(courtNum, team1, team2)
+    internal fun createBalancedCourtAssignment(courtNum: Int, players: List<PlayerMatchmakingProfile>): CourtAssignment {
+        val (a, b, c, d) = players
+        val pairings = listOf(
+            (a to b) to (c to d),
+            (a to c) to (b to d),
+            (a to d) to (b to c)
+        )
+        val twoAndTwo = players.count { it.gender == "W" } == 2
+
+        fun teamWeight(team: Pair<PlayerMatchmakingProfile, PlayerMatchmakingProfile>) =
+            getTierWeight(team.first.activeTier) + getTierWeight(team.second.activeTier)
+
+        fun isMixedPair(team: Pair<PlayerMatchmakingProfile, PlayerMatchmakingProfile>) =
+            team.first.gender != team.second.gender
+
+        val best = pairings.minWith(
+            compareBy<Pair<Pair<PlayerMatchmakingProfile, PlayerMatchmakingProfile>, Pair<PlayerMatchmakingProfile, PlayerMatchmakingProfile>>>(
+                { (t1, t2) -> if (twoAndTwo && !(isMixedPair(t1) && isMixedPair(t2))) 1 else 0 },
+                { (t1, t2) -> kotlin.math.abs(teamWeight(t1) - teamWeight(t2)) }
+            )
+        )
+        return CourtAssignment(courtNum, best.first, best.second)
     }
 }
