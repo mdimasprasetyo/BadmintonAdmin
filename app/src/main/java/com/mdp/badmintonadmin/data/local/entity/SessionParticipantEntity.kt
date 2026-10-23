@@ -1,5 +1,6 @@
 package com.mdp.badmintonadmin.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -12,5 +13,8 @@ data class SessionParticipantEntity(
     val arrivalIndex: Int,
     val gamesPlayed: Int,
     val matchesSatOutConsecutively: Int,
-    val isActivePresent: Boolean = true
+    val isActivePresent: Boolean = true,
+    // Tonight's results (added in DB version 5). Credited to the permanent record on Save & End.
+    @ColumnInfo(defaultValue = "0") val wins: Int = 0,
+    @ColumnInfo(defaultValue = "0") val losses: Int = 0
 )
