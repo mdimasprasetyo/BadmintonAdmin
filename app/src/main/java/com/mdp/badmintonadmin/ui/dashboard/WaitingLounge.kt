@@ -1,5 +1,10 @@
 package com.mdp.badmintonadmin.ui.dashboard
 
+import com.mdp.badmintonadmin.ui.components.Rolling
+import com.mdp.badmintonadmin.ui.components.Motion
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,29 +50,36 @@ import com.mdp.badmintonadmin.ui.theme.OnCoral
 @Composable
 fun WaitingPlayerRow(
     position: Int,
+    modifier: Modifier = Modifier,
     player: PlayerMatchmakingProfile,
     onTierChange: (String) -> Unit,
     onPresenceToggle: () -> Unit,
     onLongPress: () -> Unit
 ) {
     var showTierMenu by remember { mutableStateOf(false) }
-    val contentAlpha = if (player.isActivePresent) 1f else 0.5f
+    val contentAlpha by animateFloatAsState(if (player.isActivePresent) 1f else 0.5f, tween(Motion.MEDIUM), label = "presentAlpha")
+    val cardColor by animateColorAsState(
+        if (player.isActivePresent) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.background,
+        tween(Motion.MEDIUM),
+        label = "presentColor"
+    )
 
     AppCard(
-        modifier = Modifier.fillMaxWidth(),
-        color = if (player.isActivePresent) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.background
+        modifier = modifier.fillMaxWidth(),
+        color = cardColor
     ) {
         Row(
             modifier = Modifier.padding(start = 8.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "$position",
-                style = AppText.NumberSmall,
-                color = if (position == 1 && player.isActivePresent) Coral else MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.width(32.dp).alpha(contentAlpha)
-            )
+            Rolling(position, modifier = Modifier.width(32.dp).alpha(contentAlpha), contentAlignment = Alignment.Center) { pos ->
+                Text(
+                    text = "$pos",
+                    style = AppText.NumberSmall,
+                    color = if (pos == 1 && player.isActivePresent) Coral else MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
 
             Column(
                 modifier = Modifier
