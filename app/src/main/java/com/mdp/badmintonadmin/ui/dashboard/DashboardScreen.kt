@@ -1,6 +1,12 @@
 package com.mdp.badmintonadmin.ui.dashboard
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,16 +48,32 @@ fun DashboardScreen(
     var editedName by remember { mutableStateOf("") }
     var editedGender by remember { mutableStateOf("M") }
 
-    if (uiState.historyViewSession != null) {
+    val pane = when {
+        uiState.historyViewSession != null -> Pane.History
+        !uiState.isActiveSessionRunning || forceShowSetup -> Pane.Setup
+        else -> Pane.Board
+    }
+    // Last non-null history entry, so the detail screen can still draw while it animates out.
+    var lastHistory by remember { mutableStateOf(uiState.historyViewSession) }
+    if (uiState.historyViewSession != null) lastHistory = uiState.historyViewSession
+
+    AnimatedContent(
+        targetState = pane,
+        transitionSpec = {
+            (fadeIn(tween(240, delayMillis = 40)) + scaleIn(tween(280), initialScale = 0.97f)) togetherWith fadeOut(tween(150))
+        },
+        label = "pane"
+    ) { target ->
+    if (target == Pane.History && lastHistory != null) {
         SessionHistoryDetailScreen(
-            session = uiState.historyViewSession!!,
+            session = lastHistory!!,
             onBack = { viewModel.viewHistorySession(null) },
             onDelete = {
-                viewModel.deleteSessionHistory(uiState.historyViewSession!!)
+                viewModel.deleteSessionHistory(lastHistory!!)
                 viewModel.viewHistorySession(null)
             }
         )
-    } else if (!uiState.isActiveSessionRunning || forceShowSetup) {
+    } else if (target == Pane.Setup || target == Pane.History) {
         var showRestartConfirmation by remember { mutableStateOf(false) }
         var pendingCourts by remember { mutableIntStateOf(2) }
         var pendingDuration by remember { mutableIntStateOf(120) }
@@ -102,6 +124,7 @@ fun DashboardScreen(
                 editedGender = player.gender
             }
         )
+    }
     }
 
     if (playerToEdit != null) {
@@ -158,3 +181,5 @@ fun DashboardScreen(
         )
     }
 }
+
+private enum class Pane { Setup, Board, History }
