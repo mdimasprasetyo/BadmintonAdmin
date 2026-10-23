@@ -2,6 +2,8 @@ package com.mdp.badmintonadmin
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +28,11 @@ class MainActivity : ComponentActivity() {
     private val rosterViewModel: RosterViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Edge-to-edge with light system bar icons over the dark court background (dark theme only).
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
         super.onCreate(savedInstanceState)
         
         // Check if a session is already running to determine initial screen
