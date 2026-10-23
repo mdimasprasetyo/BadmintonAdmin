@@ -1,5 +1,6 @@
 package com.mdp.badmintonadmin.ui.dashboard
 
+import com.mdp.badmintonadmin.ui.components.enter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -98,7 +99,7 @@ fun SessionSetupScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item(key = "header") {
-                Column(modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) {
+                Column(modifier = Modifier.enter(0).padding(top = 12.dp, bottom = 8.dp)) {
                     Text("BADMINTON ADMIN", style = AppText.TitleCaps, color = Coral)
                     Spacer(Modifier.height(10.dp))
                     Text("Run tonight's courts", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
@@ -113,7 +114,7 @@ fun SessionSetupScreen(
 
             if (uiState.isActiveSessionRunning) {
                 item(key = "resume") {
-                    AppCard(color = CourtGreen, outlined = false, modifier = Modifier.fillMaxWidth()) {
+                    AppCard(color = CourtGreen, outlined = false, modifier = Modifier.animateItem().enter(1).fillMaxWidth()) {
                         Row(
                             modifier = Modifier.padding(Dimens.CardPadding),
                             verticalAlignment = Alignment.CenterVertically
@@ -140,7 +141,7 @@ fun SessionSetupScreen(
             }
 
             item(key = "setup") {
-                AppCard(modifier = Modifier.fillMaxWidth()) {
+                AppCard(modifier = Modifier.animateItem().enter(2).fillMaxWidth()) {
                     Column(modifier = Modifier.padding(Dimens.CardPadding)) {
                         SectionLabel(if (uiState.isActiveSessionRunning) "Start a new session" else "New session")
                         Spacer(Modifier.height(14.dp))
@@ -192,7 +193,7 @@ fun SessionSetupScreen(
                     text = "Manage roster",
                     icon = painterResource(R.drawable.ic_groups),
                     onClick = onManageRosterClick,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.animateItem().enter(3).fillMaxWidth(),
                     height = 52.dp
                 )
             }
@@ -202,7 +203,7 @@ fun SessionSetupScreen(
                     SectionLabel("Session history", modifier = Modifier.padding(top = 16.dp))
                 }
                 items(history, key = { "history-${it.sessionId}" }) { session ->
-                    HistoryRow(session = session, onClick = { viewModel.viewHistorySession(session) })
+                    HistoryRow(session = session, onClick = { viewModel.viewHistorySession(session) }, modifier = Modifier.animateItem())
                 }
                 item(key = "history-clear") {
                     Column(
@@ -222,9 +223,9 @@ fun SessionSetupScreen(
 }
 
 @Composable
-private fun HistoryRow(session: SessionHistoryEntity, onClick: () -> Unit) {
+private fun HistoryRow(session: SessionHistoryEntity, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val date = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(session.timestamp))
-    AppCard(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
+    AppCard(modifier = modifier.fillMaxWidth(), onClick = onClick) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
