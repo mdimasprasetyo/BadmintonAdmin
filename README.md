@@ -88,11 +88,32 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 
 ./gradlew testDebugUnitTest     # matchmaker unit tests
 ./gradlew assembleDebug         # app/build/outputs/apk/debug/app-debug.apk
-./gradlew assembleRelease       # app/build/outputs/apk/release/ (unsigned, not minified)
+./gradlew assembleRelease       # app/build/outputs/apk/release/app-release.apk (not minified)
 ```
 
-The release build is not signed. Before publishing, create your own keystore and add a
-`signingConfig` in `app/build.gradle.kts`.
+### Release signing
+
+The release build reads its signing key from environment variables or Gradle properties (for
+example in `~/.gradle/gradle.properties`), never from files in the repository:
+
+| Variable | Meaning |
+|---|---|
+| `BADMINTON_KEYSTORE_PATH` | Path to your keystore (`.jks`), absolute or relative to the repo root |
+| `BADMINTON_KEYSTORE_PASSWORD` | Keystore password |
+| `BADMINTON_KEY_ALIAS` | Key alias |
+| `BADMINTON_KEY_PASSWORD` | Key password |
+
+When they are not set, the release build falls back to the debug key so it still builds and
+installs. Keystores and `keystore.properties` are git-ignored; never commit them.
+
+### Signed releases on GitHub
+
+`.github/workflows/release.yml` builds and signs the APK whenever a release is published. Add four
+repository secrets under **Settings → Secrets and variables → Actions**: `BADMINTON_KEYSTORE_BASE64`
+(the `.jks` file, base64-encoded), `BADMINTON_KEYSTORE_PASSWORD`, `BADMINTON_KEY_ALIAS` and
+`BADMINTON_KEY_PASSWORD`. Bump `versionCode` / `versionName` in `app/build.gradle.kts`, publish a
+release tagged `v<versionName>` (e.g. `v1.3`), and the workflow attaches `BadmintonAdmin-<version>.apk`.
+It fails rather than publish a debug-signed APK.
 
 ## Install on a phone
 

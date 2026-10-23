@@ -21,6 +21,31 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Release signing comes from environment variables or Gradle properties (for example in
+    // ~/.gradle/gradle.properties or CI secrets), never from files in this repository:
+    //   BADMINTON_KEYSTORE_PATH, BADMINTON_KEYSTORE_PASSWORD, BADMINTON_KEY_ALIAS, BADMINTON_KEY_PASSWORD
+    // When they are absent the release build falls back to the debug key so it still builds.
+    fun signingValue(name: String): String? =
+        (System.getenv(name) ?: project.findProperty(name) as String?)?.takeIf { it.isNotBlank() }
+
+    val keystorePath = signingValue("BADMINTON_KEYSTORE_PATH")
+    val keystorePassword = signingValue("BADMINTON_KEYSTORE_PASSWORD")
+    val keyAliasValue = signingValue("BADMINTON_KEY_ALIAS")
+    val keyPasswordValue = signingValue("BADMINTON_KEY_PASSWORD")
+    val hasReleaseSigning =
+        keystorePath != null && keystorePassword != null && keyAliasValue != null && keyPasswordValue != null
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(keystorePath!!) // absolute, or relative to the repo root
+                storePassword = keystorePassword
+                keyAlias = keyAliasValue
+                keyPassword = keyPasswordValue
+            }
+        }
+    }
+
     buildTypes {
         getByName("debug") {
             // Debug/test builds install next to the real app instead of replacing it,
@@ -29,6 +54,12 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn("BadmintonAdmin: BADMINTON_KEYSTORE_* not set; release build is signed with the debug key.")
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
