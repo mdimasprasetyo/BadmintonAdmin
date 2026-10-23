@@ -1,34 +1,67 @@
 package com.mdp.badmintonadmin.ui.player_mgmt
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mdp.badmintonadmin.R
 import com.mdp.badmintonadmin.data.local.entity.PlayerEntity
-import com.mdp.badmintonadmin.ui.components.PlayerBadge
-import com.mdp.badmintonadmin.ui.theme.GenderFemale
-import com.mdp.badmintonadmin.ui.theme.GenderMale
-import com.mdp.badmintonadmin.ui.theme.OnGenderFemale
-import com.mdp.badmintonadmin.ui.theme.OnGenderMale
+import com.mdp.badmintonadmin.ui.components.AppCard
+import com.mdp.badmintonadmin.ui.components.AppTopBar
+import com.mdp.badmintonadmin.ui.components.ConfirmDialog
+import com.mdp.badmintonadmin.ui.components.Dimens
+import com.mdp.badmintonadmin.ui.components.GenderMark
+import com.mdp.badmintonadmin.ui.components.GenderSelector
+import com.mdp.badmintonadmin.ui.components.QuietTextButton
+import com.mdp.badmintonadmin.ui.components.RecordPill
+import com.mdp.badmintonadmin.ui.components.SectionLabel
+import com.mdp.badmintonadmin.ui.components.TierBadge
+import com.mdp.badmintonadmin.ui.components.TierSelector
+import com.mdp.badmintonadmin.ui.theme.AppText
+import com.mdp.badmintonadmin.ui.theme.Coral
+import com.mdp.badmintonadmin.ui.theme.OnCoral
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RosterScreen(viewModel: RosterViewModel, onBack: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
@@ -38,65 +71,79 @@ fun RosterScreen(viewModel: RosterViewModel, onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Roster Management", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+            AppTopBar(
+                title = "Roster",
+                subtitle = "${uiState.players.size} players",
+                onBack = onBack
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Text("+", fontSize = 28.sp, color = MaterialTheme.colorScheme.onPrimary)
-            }
+                icon = { Icon(painterResource(R.drawable.ic_person_add), contentDescription = null) },
+                text = { Text("Add player", style = MaterialTheme.typography.labelLarge) },
+                containerColor = Coral,
+                contentColor = OnCoral,
+                shape = RoundedCornerShape(18.dp)
+            )
         }
     ) { paddingValues ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp)
+                .consumeWindowInsets(paddingValues)
+                .imePadding(),
+            contentPadding = PaddingValues(start = Dimens.ScreenPadding, end = Dimens.ScreenPadding, top = 4.dp, bottom = 112.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = { viewModel.updateSearchQuery(it) },
-                label = { Text("Search Players") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                singleLine = true
-            )
+            item(key = "search") {
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = { viewModel.updateSearchQuery(it) },
+                    placeholder = { Text("Search players") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    trailingIcon = if (uiState.searchQuery.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Clear search")
+                            }
+                        }
+                    } else null,
+                    shape = RoundedCornerShape(Dimens.InnerCorner),
+                    singleLine = true
+                )
+            }
 
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                items(uiState.players, key = { it.id }) { player ->
-                    PlayerRosterItem(
-                        player = player,
-                        onEdit = { playerToEdit = player },
-                        onDelete = { playerToDelete = player }
-                    )
+            if (uiState.players.isEmpty()) {
+                item(key = "empty") {
+                    AppCard(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            if (uiState.searchQuery.isBlank()) "No players yet. Add your club members to get started." else "No players match your search.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)
+                        )
+                    }
                 }
-                item { Spacer(modifier = Modifier.height(80.dp)) }
+            }
+
+            items(uiState.players, key = { it.id }) { player ->
+                PlayerRosterItem(
+                    player = player,
+                    onEdit = { playerToEdit = player },
+                    onDelete = { playerToDelete = player }
+                )
             }
         }
     }
 
     if (showAddDialog) {
         AddEditPlayerDialog(
-            title = "Add New Player",
+            title = "Add player",
             onDismiss = { showAddDialog = false },
             onConfirm = { name, tier, gender ->
                 viewModel.addPlayer(name, tier, gender)
@@ -107,10 +154,11 @@ fun RosterScreen(viewModel: RosterViewModel, onBack: () -> Unit) {
 
     if (playerToEdit != null) {
         AddEditPlayerDialog(
-            title = "Edit Player",
+            title = "Edit player",
             initialName = playerToEdit!!.name,
             initialTier = playerToEdit!!.baseTier,
             initialGender = playerToEdit!!.gender,
+            player = playerToEdit,
             onDismiss = { playerToEdit = null },
             onConfirm = { name, tier, gender ->
                 viewModel.updatePlayer(playerToEdit!!, name, tier, gender)
@@ -120,26 +168,16 @@ fun RosterScreen(viewModel: RosterViewModel, onBack: () -> Unit) {
     }
 
     if (playerToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { playerToDelete = null },
-            title = { Text("Delete Player?") },
-            text = { Text("Are you sure you want to delete ${playerToDelete!!.name}? This action cannot be undone.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deletePlayer(playerToDelete!!)
-                        playerToDelete = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Delete")
-                }
+        ConfirmDialog(
+            title = "Delete player?",
+            message = "Delete ${playerToDelete!!.name} from the roster? This cannot be undone.",
+            confirmText = "Delete",
+            destructive = true,
+            onConfirm = {
+                viewModel.deletePlayer(playerToDelete!!)
+                playerToDelete = null
             },
-            dismissButton = {
-                TextButton(onClick = { playerToDelete = null }) {
-                    Text("Cancel")
-                }
-            }
+            onDismiss = { playerToDelete = null }
         )
     }
 }
@@ -154,127 +192,128 @@ fun PlayerRosterItem(
         SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(it))
     } ?: "Never"
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
+    AppCard(modifier = Modifier.fillMaxWidth(), onClick = onEdit) {
         Row(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(start = 14.dp, top = 12.dp, bottom = 12.dp, end = 4.dp)
                 .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            TierBadge(player.baseTier, size = 40.dp, fontSize = 22.sp)
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                PlayerBadge(player.name, player.baseTier, player.gender)
-                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    GenderMark(player.gender, size = 20.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        player.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    RecordPill(player.totalWins, player.totalLosses)
+                }
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Matches: ${player.totalMatchesPlayed} | Sessions: ${player.totalSessionsParticipated}",
-                    fontSize = 12.sp,
+                    text = "${player.totalMatchesPlayed} matches · ${player.totalSessionsParticipated} sessions",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "Last Played: $lastPlayed",
-                    fontSize = 12.sp,
+                    text = "Last played $lastPlayed",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Row {
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
-                }
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Filled.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditPlayerDialog(
     title: String,
     initialName: String = "",
     initialTier: String = "B",
     initialGender: String = "M",
+    player: PlayerEntity? = null,
     onDismiss: () -> Unit,
     onConfirm: (String, String, String) -> Unit
 ) {
     var name by remember { mutableStateOf(initialName) }
     var tier by remember { mutableStateOf(initialTier) }
     var gender by remember { mutableStateOf(initialGender) }
-    var showTierDropdown by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title, fontWeight = FontWeight.Bold) },
+        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        title = { Text(title, style = MaterialTheme.typography.titleLarge) },
         text = {
             Column {
+                if (player != null) {
+                    PlayerRecordSummary(player)
+                    Spacer(Modifier.height(16.dp))
+                }
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Player Name") },
+                    label = { Text("Player name") },
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Dimens.InnerCorner),
                     singleLine = true
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        OutlinedButton(onClick = { showTierDropdown = true }, modifier = Modifier.fillMaxWidth()) {
-                            Text("Tier: $tier")
-                        }
-                        DropdownMenu(expanded = showTierDropdown, onDismissRequest = { showTierDropdown = false }) {
-                            listOf("S", "A", "B", "C", "D", "X").forEach { t ->
-                                DropdownMenuItem(
-                                    text = { Text("Tier $t") },
-                                    onClick = { tier = t; showTierDropdown = false }
-                                )
-                            }
-                        }
-                    }
-
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f)) {
-                        SegmentedButton(
-                            selected = gender == "M",
-                            onClick = { gender = "M" },
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                            colors = SegmentedButtonDefaults.colors(
-                                activeContainerColor = GenderMale,
-                                activeContentColor = OnGenderMale
-                            )
-                        ) {
-                            Text("M")
-                        }
-                        SegmentedButton(
-                            selected = gender == "W",
-                            onClick = { gender = "W" },
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                            colors = SegmentedButtonDefaults.colors(
-                                activeContainerColor = GenderFemale,
-                                activeContentColor = OnGenderFemale
-                            )
-                        ) {
-                            Text("W")
-                        }
-                    }
-                }
+                Spacer(Modifier.height(14.dp))
+                SectionLabel("Tier")
+                Spacer(Modifier.height(6.dp))
+                TierSelector(selected = tier, onSelect = { tier = it })
+                Spacer(Modifier.height(14.dp))
+                SectionLabel("Gender")
+                Spacer(Modifier.height(6.dp))
+                GenderSelector(selected = gender, onSelect = { gender = it })
             }
         },
         confirmButton = {
             Button(
                 onClick = { onConfirm(name, tier, gender) },
-                enabled = name.isNotBlank()
+                enabled = name.isNotBlank(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Coral, contentColor = OnCoral)
             ) {
-                Text("Confirm")
+                Text("Save", style = MaterialTheme.typography.labelLarge)
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
+        dismissButton = { QuietTextButton("Cancel", onDismiss) }
     )
+}
+
+/** Lifetime numbers for one player: wins, losses, matches, sessions. */
+@Composable
+private fun PlayerRecordSummary(player: PlayerEntity) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        listOf(
+            "${player.totalWins}" to "Wins",
+            "${player.totalLosses}" to "Losses",
+            "${player.totalMatchesPlayed}" to "Matches",
+            "${player.totalSessionsParticipated}" to "Sessions"
+        ).forEachIndexed { index, (value, label) ->
+            AppCard(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.surface) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp).fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(value, style = AppText.NumberSmall, color = if (index == 0) Coral else MaterialTheme.colorScheme.onSurface)
+                    Text(label.uppercase(), style = AppText.SectionLabel.copy(fontSize = 9.sp), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                }
+            }
+        }
+    }
 }
