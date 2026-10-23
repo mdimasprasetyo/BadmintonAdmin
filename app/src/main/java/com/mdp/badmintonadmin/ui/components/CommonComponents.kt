@@ -1,6 +1,9 @@
 package com.mdp.badmintonadmin.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,6 +38,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -132,7 +137,7 @@ fun StatTile(
 ) {
     AppCard(modifier = modifier) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-            Text(value, style = AppText.NumberMedium, color = valueColor, maxLines = 1)
+            Rolling(value) { Text(it, style = AppText.NumberMedium, color = valueColor, maxLines = 1) }
             Spacer(Modifier.height(2.dp))
             Text(label.uppercase(), style = AppText.SectionLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
@@ -151,10 +156,12 @@ fun PrimaryButton(
     icon: Painter? = null,
     height: Dp = Dimens.ButtonHeight
 ) {
+    val source = remember { MutableInteractionSource() }
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(height),
+        modifier = modifier.height(height).pressScale(source),
+        interactionSource = source,
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = Coral,
@@ -183,10 +190,12 @@ fun ToolButton(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     height: Dp = Dimens.ToolButtonHeight
 ) {
+    val source = remember { MutableInteractionSource() }
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(height),
+        modifier = modifier.height(height).pressScale(source),
+        interactionSource = source,
         shape = RoundedCornerShape(Dimens.InnerCorner),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -214,9 +223,11 @@ fun OutlineToolButton(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     height: Dp = Dimens.ToolButtonHeight
 ) {
+    val source = remember { MutableInteractionSource() }
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier.height(height),
+        modifier = modifier.height(height).pressScale(source),
+        interactionSource = source,
         shape = RoundedCornerShape(Dimens.InnerCorner),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = contentColor),
@@ -396,11 +407,13 @@ fun RecordPill(wins: Int, losses: Int, modifier: Modifier = Modifier) {
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp))
             .padding(horizontal = 7.dp, vertical = 1.dp)
     ) {
+        Rolling("$wins–$losses") { record ->
         Text(
-            text = "$wins–$losses",
+            text = record,
             style = AppText.NumberSmall.copy(fontSize = 15.sp, lineHeight = 18.sp),
             color = MaterialTheme.colorScheme.onSurface
         )
+        }
     }
 }
 
@@ -419,12 +432,13 @@ fun TierSelector(
             val color = tierColor(tier)
             val isSelected = tier.equals(selected, ignoreCase = true)
             val shape = RoundedCornerShape(12.dp)
+            val fill by animateColorAsState(if (isSelected) color else color.copy(alpha = 0.10f), tween(Motion.SHORT), label = "tierFill")
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .height(44.dp)
                     .clip(shape)
-                    .background(if (isSelected) color else color.copy(alpha = 0.10f))
+                    .background(fill)
                     .border(1.dp, color.copy(alpha = if (isSelected) 1f else 0.4f), shape)
                     .clickable(role = Role.RadioButton) { onSelect(tier) },
                 contentAlignment = Alignment.Center
@@ -452,12 +466,13 @@ fun GenderSelector(
             val container = if (code == "M") GenderMale else GenderFemale
             val content = if (code == "M") OnGenderMale else OnGenderFemale
             val shape = RoundedCornerShape(12.dp)
+            val fill by animateColorAsState(if (isSelected) container else Color.Transparent, tween(Motion.SHORT), label = "genderFill")
             Row(
                 modifier = Modifier
                     .weight(1f)
                     .height(44.dp)
                     .clip(shape)
-                    .background(if (isSelected) container else Color.Transparent)
+                    .background(fill)
                     .border(1.dp, if (isSelected) content.copy(alpha = 0.7f) else MaterialTheme.colorScheme.outline, shape)
                     .clickable(role = Role.RadioButton) { onSelect(code) }
                     .alpha(if (isSelected) 1f else 0.75f),
