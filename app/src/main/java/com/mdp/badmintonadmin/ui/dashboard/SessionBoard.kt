@@ -1,5 +1,15 @@
 package com.mdp.badmintonadmin.ui.dashboard
 
+import com.mdp.badmintonadmin.ui.components.Motion
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -175,9 +185,16 @@ fun SessionBoard(
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    if (uiState.undoLabel != null) {
+                    // Keep the last label while it fades out.
+                    var lastUndoLabel by remember { mutableStateOf(uiState.undoLabel) }
+                    if (uiState.undoLabel != null) lastUndoLabel = uiState.undoLabel
+                    AnimatedVisibility(
+                        visible = uiState.undoLabel != null,
+                        enter = fadeIn(tween(Motion.SHORT)) + expandVertically(tween(Motion.SHORT)),
+                        exit = fadeOut(tween(Motion.SHORT)) + shrinkVertically(tween(Motion.SHORT))
+                    ) {
                         Text(
-                            text = "Undo: ${uiState.undoLabel}",
+                            text = "Undo: ${lastUndoLabel.orEmpty()}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -194,11 +211,12 @@ fun SessionBoard(
 
             if (uiState.activeCourts.isEmpty()) {
                 item(key = "courts-empty") {
-                    EmptyNote("Waiting for enough players to fill a court…")
+                    EmptyNote("Waiting for enough players to fill a court…", modifier = Modifier.animateItem())
                 }
             } else {
                 items(uiState.activeCourts, key = { "court-${it.stableId}" }) { court ->
                     CourtCard(
+                        modifier = Modifier.animateItem(),
                         court = court,
                         availableSubstitutes = uiState.waitingLounge,
                         onFinish = { winner -> finishMatch(court, winner) },
@@ -230,11 +248,12 @@ fun SessionBoard(
 
             if (uiState.waitingLounge.isEmpty()) {
                 item(key = "lounge-empty") {
-                    EmptyNote("Nobody is resting in the lounge.")
+                    EmptyNote("Nobody is resting in the lounge.", modifier = Modifier.animateItem())
                 }
             } else {
                 itemsIndexed(uiState.waitingLounge, key = { _, player -> "player-${player.playerId}" }) { index, player ->
                     WaitingPlayerRow(
+                        modifier = Modifier.animateItem(),
                         position = index + 1,
                         player = player,
                         onTierChange = { newTier ->
