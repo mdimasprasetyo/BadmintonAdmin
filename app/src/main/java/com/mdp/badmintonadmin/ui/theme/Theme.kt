@@ -1,63 +1,66 @@
 package com.mdp.badmintonadmin.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    onPrimary = Color.Black,
-    secondary = PurpleGrey80,
-    onSecondary = Color.Black,
-    tertiary = FinishGreenDark,
-    onTertiary = OnFinishGreenDark,
-    background = DarkBackground,
-    onBackground = Color.White,
-    surface = DarkBackground,
-    onSurface = Color.White,
-    surfaceVariant = Color(0xFF49454F),
-    onSurfaceVariant = DarkOnSurfaceVariant,
-    outline = Color(0xFF938F99),
-    primaryContainer = Color(0xFF381E72),
-    onPrimaryContainer = Color(0xFFEADDFF),
-    error = Color(0xFFF2B8B5),
-    onError = Color(0xFF601410)
+// Dark only, like ScoreCounter and Pickles. No dynamic colour: the court palette is the brand.
+private val CourtColorScheme = darkColorScheme(
+    primary = Coral,
+    onPrimary = OnCoral,
+    primaryContainer = CourtGreen,
+    onPrimaryContainer = OnCourtGreen,
+    inversePrimary = Coral,
+    secondary = CourtLine,
+    onSecondary = CourtNight,
+    secondaryContainer = CourtSurfaceTop,
+    onSecondaryContainer = Chalk,
+    tertiary = WinGreen,
+    onTertiary = OnWinGreen,
+    tertiaryContainer = CourtGreen,
+    onTertiaryContainer = OnCourtGreen,
+    background = CourtNight,
+    onBackground = Chalk,
+    surface = CourtSurface,
+    onSurface = Chalk,
+    surfaceVariant = CourtSurfaceHigh,
+    onSurfaceVariant = Muted,
+    surfaceTint = CourtSurface,
+    inverseSurface = Chalk,
+    inverseOnSurface = CourtNight,
+    error = Danger,
+    onError = OnDanger,
+    errorContainer = DangerContainer,
+    onErrorContainer = Chalk,
+    outline = CourtOutlineStrong,
+    outlineVariant = CourtOutline,
+    scrim = CourtNight,
+    surfaceBright = CourtSurfaceTop,
+    surfaceDim = CourtNight,
+    surfaceContainerLowest = CourtNight,
+    surfaceContainerLow = CourtSurface,
+    surfaceContainer = CourtSurface,
+    surfaceContainerHigh = CourtSurfaceHigh,
+    surfaceContainerHighest = CourtSurfaceTop
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    onPrimary = Color.White,
-    secondary = PurpleGrey40,
-    onSecondary = Color.White,
-    tertiary = FinishGreenLight,
-    onTertiary = OnFinishGreenLight,
-    background = LightBackground,
-    onBackground = Color(0xFF1C1B1F),
-    surface = LightBackground,
-    onSurface = Color(0xFF1C1B1F),
-    surfaceVariant = Color(0xFFE7E0EC),
-    onSurfaceVariant = LightOnSurfaceVariant,
-    outline = Color(0xFF79747E),
-    primaryContainer = Color(0xFFEADDFF),
-    onPrimaryContainer = Color(0xFF21005D),
-    error = Color(0xFFB3261E),
-    onError = Color.White
+private val CourtShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(28.dp)
 )
 
 @Composable
-fun BadmintonAdminTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
-    // Note: Ensuring accessible brand colors are used by bypassing dynamicColor for now
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
-
+fun BadmintonAdminTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = CourtColorScheme,
         typography = Typography,
+        shapes = CourtShapes,
         content = content
     )
 }
