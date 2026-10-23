@@ -32,3 +32,8 @@ Thumbs.db
 
 # Artifacts directory
 .artifacts/
+
+# Signing material: never commit keystores or their passwords
+*.jks
+*.keystore
+keystore.properties
