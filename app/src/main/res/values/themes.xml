@@ -5,7 +5,7 @@
         there is no white flash before Compose draws; system bars match it (edge-to-edge is enabled
         in MainActivity, which makes them transparent over the same colour).
     -->
-    <style name="Theme.BadmintonAdmin" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.Shuttlers" parent="android:Theme.Material.NoActionBar">
         <item name="android:colorBackground">@color/court_night</item>
         <item name="android:windowBackground">@color/court_night</item>
         <item name="android:colorPrimary">@color/court_green</item>

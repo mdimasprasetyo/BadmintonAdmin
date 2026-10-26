@@ -20,7 +20,7 @@ teams.
 ```
 BadmintonAdmin/
 └── app/                            Android app
-    └── src/main/java/com/mdp/badmintonadmin/
+    └── src/main/java/app/shuttlers/
         ├── MainActivity.kt         Entry point, screen routing (Home, Dashboard, Roster), back handling
         ├── domain/
         │   ├── session/            SessionRules (match credit, undo restore, history lines), UndoStack
