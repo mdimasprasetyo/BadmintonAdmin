@@ -1,7 +1,7 @@
-# BadmintonAdmin
+# Shuttlers
 
 An offline court organiser for social badminton sessions on Android. You check players in as they
-arrive and BadmintonAdmin fills every booked court with a balanced doubles match: it picks who plays
+arrive and Shuttlers fills every booked court with a balanced doubles match: it picks who plays
 next by priority (arrival order, games played, time on the bench), keeps the skill gap on each court
 within limits, prefers same-gender courts when possible, and splits the four players into two even
 teams.
@@ -112,7 +112,7 @@ installs. Keystores and `keystore.properties` are git-ignored; never commit them
 repository secrets under **Settings → Secrets and variables → Actions**: `BADMINTON_KEYSTORE_BASE64`
 (the `.jks` file, base64-encoded), `BADMINTON_KEYSTORE_PASSWORD`, `BADMINTON_KEY_ALIAS` and
 `BADMINTON_KEY_PASSWORD`. Bump `versionCode` / `versionName` in `app/build.gradle.kts`, publish a
-release tagged `v<versionName>` (e.g. `v1.3`), and the workflow attaches `BadmintonAdmin-<version>.apk`.
+release tagged `v<versionName>` (e.g. `v1.3`), and the workflow attaches `Shuttlers-<version>.apk`.
 It fails rather than publish a debug-signed APK.
 
 ## Install on a phone
@@ -120,7 +120,7 @@ It fails rather than publish a debug-signed APK.
 **From the APK file**
 1. Copy `app-debug.apk` to the phone.
 2. Open it from the Files app. If asked, allow *Install unknown apps* for that app.
-3. Tap **Install**, then open **BadmintonAdmin**.
+3. Tap **Install**, then open **Shuttlers**.
 
 **With USB debugging**
 ```bash

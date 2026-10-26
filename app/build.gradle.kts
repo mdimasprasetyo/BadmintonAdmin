@@ -57,7 +57,7 @@ android {
             signingConfig = if (hasReleaseSigning) {
                 signingConfigs.getByName("release")
             } else {
-                logger.warn("BadmintonAdmin: BADMINTON_KEYSTORE_* not set; release build is signed with the debug key.")
+                logger.warn("Shuttlers: BADMINTON_KEYSTORE_* not set; release build is signed with the debug key.")
                 signingConfigs.getByName("debug")
             }
             isMinifyEnabled = false
