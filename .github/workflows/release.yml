@@ -65,16 +65,16 @@ jobs:
           APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)
           "$APKSIGNER" verify --print-certs "$APK" | tee certs.txt
           if grep -q "CN=Android Debug" certs.txt; then echo "::error::APK is debug-signed"; exit 1; fi
-          cp "$APK" "BadmintonAdmin-${{ steps.version.outputs.version }}.apk"
+          cp "$APK" "Shuttlers-${{ steps.version.outputs.version }}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: BadmintonAdmin-${{ steps.version.outputs.version }}
-          path: BadmintonAdmin-${{ steps.version.outputs.version }}.apk
+          name: Shuttlers-${{ steps.version.outputs.version }}
+          path: Shuttlers-${{ steps.version.outputs.version }}.apk
 
       - name: Attach APK to the release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.release.tag_name }}
-          files: BadmintonAdmin-${{ steps.version.outputs.version }}.apk
+          files: Shuttlers-${{ steps.version.outputs.version }}.apk
