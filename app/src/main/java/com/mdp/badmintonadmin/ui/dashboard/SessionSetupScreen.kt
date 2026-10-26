@@ -100,7 +100,7 @@ fun SessionSetupScreen(
         ) {
             item(key = "header") {
                 Column(modifier = Modifier.enter(0).padding(top = 12.dp, bottom = 8.dp)) {
-                    Text("BADMINTON ADMIN", style = AppText.TitleCaps, color = Coral)
+                    Text("SHUTTLERS", style = AppText.TitleCaps, color = Coral)
                     Spacer(Modifier.height(10.dp))
                     Text("Run tonight's courts", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
                     Spacer(Modifier.height(4.dp))
