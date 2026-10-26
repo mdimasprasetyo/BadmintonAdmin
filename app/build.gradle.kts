@@ -6,13 +6,13 @@ plugins {
 }
 
 android {
-    namespace = "com.mdp.badmintonadmin"
+    namespace = "app.shuttlers"
 
     // Menggunakan compileSdk Android 17 (API 37) sesuai persyaratan library terbaru
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.mdp.badmintonadmin"
+        applicationId = "app.shuttlers"
         minSdk = 26
         targetSdk = 37
         versionCode = 4
